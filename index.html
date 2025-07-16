@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Meeting Insights</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        input[type="file"]::file-selector-button {
+            background-color: #eff6ff; 
+            color: #1d4ed8; 
+            padding: 0.5rem 1rem;
+            border-radius: 9999px; 
+            border: 0;
+            font-size: 0.875rem; 
+            font-weight: 600;
+            margin-right: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        input[type="file"]::file-selector-button:hover {
+            background-color: #dbeafe; 
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden md:p-8 p-6 my-8">
+        <h1 class="text-4xl font-extrabold text-center text-gray-800 mb-8">
+            AI Meeting Insights
+        </h1>
+
+        <!-- File Input Section -->
+        <div class="mb-6 border border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+            <label for="file-upload" class="block text-lg font-semibold text-gray-700 mb-2">
+                Upload Audio or Video File:
+            </label>
+            <input
+                id="file-upload"
+                type="file"
+                accept="audio/*,video/*"
+                class="block w-full text-sm text-gray-500 cursor-pointer"
+            />
+            <div id="selected-file-info" class="mt-4 hidden items-center justify-center space-x-2">
+                <span class="text-gray-600 text-sm" id="file-name"></span>
+                <button id="clear-file-btn" class="text-red-500 hover:text-red-700 text-sm font-semibold">
+                    Clear
+                </button>
+            </div>
+            <div id="backend-note" class="mt-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg text-sm hidden" role="alert">
+                <strong class="font-bold">Note:</strong>
+                <span class="block sm:inline ml-2" id="backend-note-text">
+                    Audio/Video processing (including transcription via Whisper API) would typically occur on a backend server.
+                    Please paste the transcribed text into the transcript area below for summarization.
+                </span>
+            </div>
+        </div>
+
+        <!-- Transcript Input Section -->
+        <div class="mb-6">
+            <label for="transcript" class="block text-lg font-semibold text-gray-700 mb-2">
+                Enter Meeting Transcript:
+            </label>
+            <textarea
+                id="transcript"
+                class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out shadow-sm resize-y min-h-[150px]"
+                rows="8"
+                placeholder="Paste your meeting transcript here or upload an audio/video file above for transcription."
+            ></textarea>
+        </div>
+
+        <!-- Summarize Button -->
+        <div class="mb-8 text-center">
+            <button
+                id="summarize-btn"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transform hover:scale-105 transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                Summarize 
+            </button>
+        </div>
+
+        <!-- Error Message Display -->
+        <div id="error-message" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6 hidden" role="alert">
+            <strong class="font-bold">Error!</strong>
+            <span class="block sm:inline ml-2" id="error-text"></span>
+        </div>
+
+        <!-- Results Display Section -->
+        <div id="results-section" class="mt-8 space-y-8 hidden">
+            <!-- Summary Section -->
+            <div id="summary-card" class="bg-blue-50 p-6 rounded-lg shadow-md border border-blue-200 hidden">
+                <h2 class="text-2xl font-bold text-blue-800 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    Meeting Summary
+                </h2>
+                <p id="summary-content" class="text-gray-700 leading-relaxed whitespace-pre-wrap"></p>
+            </div>
+
+            <!-- Objections & Resolutions Section -->
+            <div id="objections-card" class="bg-red-50 p-6 rounded-lg shadow-md border border-red-200 hidden">
+                <h2 class="text-2xl font-bold text-red-800 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Client Objections & Pain Points
+                </h2>
+                <ul id="objections-list" class="list-disc pl-5 space-y-3 text-gray-700"></ul>
+            </div>
+
+            <!-- Action Items Section -->
+            <div id="action-items-card" class="bg-green-50 p-6 rounded-lg shadow-md border border-green-200 hidden">
+                <h2 class="text-2xl font-bold text-green-800 mb-4 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    Action Items & Follow-ups
+                </h2>
+                <ul id="action-items-list" class="list-decimal pl-5 space-y-3 text-gray-700"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const summarizeBtn = document.getElementById('summarize-btn');
+        const transcriptInput = document.getElementById('transcript');
+        const errorMessageDiv = document.getElementById('error-message');
+        const errorTextSpan = document.getElementById('error-text');
+        const resultsSection = document.getElementById('results-section');
+        const summaryCard = document.getElementById('summary-card');
+        const summaryContent = document.getElementById('summary-content');
+        const objectionsCard = document.getElementById('objections-card');
+        const objectionsList = document.getElementById('objections-list');
+        const actionItemsCard = document.getElementById('action-items-card');
+        const actionItemsList = document.getElementById('action-items-list');
+        const fileUploadInput = document.getElementById('file-upload');
+        const selectedFileInfo = document.getElementById('selected-file-info');
+        const fileNameSpan = document.getElementById('file-name');
+        const clearFileBtn = document.getElementById('clear-file-btn');
+        const backendNote = document.getElementById('backend-note');
+        const backendNoteText = document.getElementById('backend-note-text');
+
+        function showError(message) {
+            errorTextSpan.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorMessageDiv.classList.add('hidden');
+            errorTextSpan.textContent = '';
+        }
+
+        function clearResults() {
+            resultsSection.classList.add('hidden');
+            summaryCard.classList.add('hidden');
+            objectionsCard.classList.add('hidden');
+            actionItemsCard.classList.add('hidden');
+            summaryContent.textContent = '';
+            objectionsList.innerHTML = '';
+            actionItemsList.innerHTML = '';
+        }
+
+        function setLoadingState(isLoading, message = 'Processing...') {
+            summarizeBtn.disabled = isLoading;
+            if (isLoading) {
+                summarizeBtn.innerHTML = `
+                    <span class="flex items-center justify-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        ${message}
+                    </span>
+                `;
+            } else {
+                summarizeBtn.innerHTML = 'Get Meeting Insights';
+            }
+        }
+
+
+        fileUploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                fileNameSpan.textContent = file.name;
+                selectedFileInfo.classList.remove('hidden');
+                selectedFileInfo.classList.add('flex'); //alignment
+                backendNote.classList.remove('hidden');
+                backendNoteText.textContent = `
+                    File selected. Click 'Get Meeting Insights' to upload and transcribe.
+                    The transcribed text will appear in the transcript area below.
+                `;
+            } else {
+                fileNameSpan.textContent = '';
+                selectedFileInfo.classList.add('hidden');
+                selectedFileInfo.classList.remove('flex');
+                backendNote.classList.add('hidden');
+                backendNoteText.textContent = `
+                    Audio/Video processing (including transcription via Whisper API) would typically occur on a backend server.
+                    Please paste the transcribed text into the transcript area below for summarization.
+                `;
+            }
+        });
+
+
+        clearFileBtn.addEventListener('click', () => {
+            fileUploadInput.value = null; // Clear the file input
+            fileNameSpan.textContent = '';
+            selectedFileInfo.classList.add('hidden');
+            selectedFileInfo.classList.remove('flex');
+            backendNote.classList.add('hidden');
+            transcriptInput.value = ''; // Clear transcript if file is cleared
+            backendNoteText.textContent = `
+                Audio/Video processing (including transcription via Whisper API) would typically occur on a backend server.
+                Please paste the transcribed text into the transcript area below for summarization.
+            `;
+        });
+
+        // Handle summarize button click
+        summarizeBtn.addEventListener('click', async () => {
+            hideError();
+            clearResults();
+
+            const selectedFile = fileUploadInput.files[0];
+            let transcript = transcriptInput.value.trim();
+
+            if (selectedFile) {
+                setLoadingState(true, 'Uploading & Transcribing...');
+                try {
+                    const formData = new FormData();
+                    formData.append('audio_file', selectedFile);
+
+                    const uploadResponse = await fetch('http://127.0.0.1:8000/upload-audio', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (!uploadResponse.ok) {
+                        const errorData = await uploadResponse.json();
+                        throw new Error(errorData.detail || `HTTP error! status: ${uploadResponse.status}`);
+                    }
+
+                    const uploadResult = await uploadResponse.json();
+                    transcript = uploadResult.transcribed_text; // Get transcribed text
+
+                    if (!transcript || transcript.trim() === '') {
+                        // If transcription returns empty, show a specific error
+                        showError('Transcription returned empty text. Please try another file or ensure audio clarity.');
+                        setLoadingState(false);
+                        return; // Stop if transcription is empty
+                    }
+
+                    transcriptInput.value = transcript; // Populate the transcript area
+                    backendNoteText.textContent = 'Transcription complete. Now summarizing...';
+
+                } catch (error) {
+                    console.error('Error during audio upload/transcription:', error);
+                    showError(`Error during transcription: ${error.message}. Ensure backend is running, OpenAI API key is correct, and file is valid.`);
+                    setLoadingState(false);
+                    return; // Stop if transcription fails
+                }
+            }
+
+            // Proceed with summarization using the transcript (either manually entered or transcribed)
+            if (!transcript || transcript.trim() === '') { // Check again after potential transcription
+                showError('Please enter a meeting transcript or upload a file for transcription.');
+                setLoadingState(false);
+                return;
+            }
+
+            setLoadingState(true, 'Summarizing...');
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/summarize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ transcript: transcript }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                resultsSection.classList.remove('hidden');
+
+                if (data.summary) {
+                    summaryContent.textContent = data.summary;
+                    summaryCard.classList.remove('hidden');
+                }
+
+                if (data.objections && data.objections.length > 0) {
+                    objectionsList.innerHTML = ''; // Clear previous items
+                    data.objections.forEach(item => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span class="font-semibold">Objection:</span> ${item.point}<br><span class="font-semibold">Resolution:</span> ${item.resolution || 'No explicit resolution provided.'}`;
+                        objectionsList.appendChild(li);
+                    });
+                    objectionsCard.classList.remove('hidden');
+                }
+
+                if (data.actionItems && data.actionItems.length > 0) {
+                    actionItemsList.innerHTML = ''; // Clear previous items
+                    data.actionItems.forEach(item => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span class="font-semibold">Task:</span> ${item.task}${item.responsible ? `<span class="ml-2 font-semibold">(Responsible: ${item.responsible})</span>` : ''}`;
+                        actionItemsList.appendChild(li);
+                    });
+                    actionItemsCard.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError(`An error occurred: ${error.message}. Please check the console and ensure the backend is running.`);
+            } finally {
+                setLoadingState(false); // Restore button state
+            }
+        });
+    </script>
+</body>
+</html>

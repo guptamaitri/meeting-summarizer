@@ -4,8 +4,9 @@ This is a Python FastAPI implementation to summarize meetings using Gemini API. 
 There are two files `main.py` and `index.html` which server as the backend and frontend of the program respectively.
 
 To set up the program, you need the following installed:
-1. FastAPI
-2. OpenAI whisper (to process the files locally)
+1. FastAPI `pip install fastapi`
+2. Local whisper (to process the files locally) `pip install local-whisper`
+3. To run whisper locally, make sure to install ffmpeg via chocolatey. `choco install ffmpeg`
 along with any other necessary libraries
 
 Create you own GEMINI_API_KEY and set it as an Environment Variable
